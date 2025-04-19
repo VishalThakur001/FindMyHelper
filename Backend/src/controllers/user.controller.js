@@ -2,6 +2,7 @@ import { User } from "../models/user.model.js";
 import { Review } from "../models/review.model.js";
 import { BlacklistRefreshToken } from "../models/blacklistRefreshToken.model.js";
 import { uploadCloudinary, deleteCloudinary } from "../utils/cloudinary.js";
+import { sendOtp } from "../utils/sendOtp.js";
 import mongoose from "mongoose";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
@@ -19,9 +20,40 @@ export const checkAvailability = async (req, res) => {
   
     return res.status(200).json({ message: 'Available' });
 };
-  
+
+export const sendOtpToPhone = async (req, res) => {
+  try {
+    const { phone } = req.body;
+
+    if (!phone) {
+      return res.status(400).json({ message: "Phone number is required" });
+    }
+
+    await sendOtp(phone); // Twilio sends OTP to the phone number
+
+    return res.status(200).json({ message: "OTP sent successfully" });
+  } catch (error) {
+    console.error("Send OTP error:", error);
+    return res.status(500).json({ message: "Failed to send OTP" });
+  }
+};
+
 export const registerUser = async (req, res) => {
     try {
+
+      const { phone, otp } = req.body;
+
+      if (!phone || !otp) {
+        return res.status(400).json({ message: "Phone and OTP are required" });
+      }
+
+      // Use Twilio to verify the OTP
+      const verified = await sendOtp(phone, otp, true); // 'true' indicates verification mode
+
+      if (!verified) {
+        return res.status(400).json({ message: "Invalid or expired OTP" });
+      }
+
       const {
         fullName,
         email,
